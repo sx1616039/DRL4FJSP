@@ -239,11 +239,15 @@ class JobEnv:
 
     def time_advance(self):
         hole_len = 0
+        old_time = self.current_time
         min_next_time = min(self.next_time_on_machine)
         if self.current_time < min_next_time:
             self.current_time = min_next_time
         else:
             self.current_time = self.find_second_min()
+
+        for i in range(50 - self.machine_num):
+            hole_len += self.current_time - old_time
         for machine in range(self.machine_num):
             dist_need_to_advance = self.current_time - self.next_time_on_machine[machine]
             if dist_need_to_advance > 0:

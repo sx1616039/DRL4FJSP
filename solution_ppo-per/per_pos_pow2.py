@@ -222,7 +222,7 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "12-idle-solution-fjsp-2000-vdata"
+    prefix = "50m-idle-solution-fjsp-2000-vdata"
     param = [prefix, "converged_iterations", "total_time", 'min']
     path = "../Hurink/vdata/"
     for i in range(3):

@@ -270,7 +270,7 @@ class PPO:
 if __name__ == '__main__':
     prefix = "12-idle-binary-fjsp-2000-vdata"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../Hurink/vdata/"
+    path = "../Hurink/SPP/"
     for i in range(3):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)
