@@ -74,8 +74,8 @@ class JobEnv:
             self.num_of_machine_pdr = 1  # only use min operation
         else:
             self.num_of_machine_pdr = 2  # max and min
-        self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
-        # self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
+        # self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
+        self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
         self.max_job = self.job_num
         self.max_machine = self.machine_num
         self.current_time = 0  # current time
@@ -215,7 +215,7 @@ class JobEnv:
         self.job_on_machine[machine_id-1] = job_id
 
         self.solution_op_cnt += 1
-        self.state[job_id][self.current_op_of_job[job_id]] = self.solution_op_cnt / self.job_num / self.machine_num
+        self.state[job_id][self.current_op_of_job[job_id]] = self.solution_op_cnt / self.scale
         start_time = self.next_time_on_machine[machine_id-1]
         self.next_time_on_machine[machine_id-1] += process_time
         end_time = start_time + process_time
