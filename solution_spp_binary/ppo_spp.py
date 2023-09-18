@@ -11,6 +11,10 @@ from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from binary4fjsp import JobEnv
 from math import floor, ceil
 
+m_seed = 3407
+# 设置seed
+torch.manual_seed(m_seed)
+
 
 def SpatialPyramidPooling2d(input_x, level, pool_type='max_pool'):
     N, C, H, W = input_x.size()
@@ -102,7 +106,7 @@ class PPO:
         self.alpha = 0.6  # parameters for priority replay
         self.beta = 0.4
         self.upper_bound = 1
-        self.convergence_episode = 3000
+        self.convergence_episode = 2000
         self.beta_increment = (self.upper_bound - self.beta) / self.convergence_episode
         self.train_steps = 0
         self.replay_size = self.env.job_num * self.env.machine_num
@@ -186,21 +190,19 @@ class PPO:
                                                     old_log_prob[index])
             # priority replay
             for r in range(self.PER_NUM):
-                prob1 = self.priorities / np.sum(self.priorities)
-                replay_size = self.init_size + (self.batch_size - self.init_size) * pow(
-                        self.train_steps / self.convergence_episode, 2)
-                indices = np.random.choice(len(ba), min(self.batch_size, int(replay_size)), p=prob1)
-                self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices])
                 # prob1 = self.priorities / np.sum(self.priorities)
-                # indices = np.random.choice(len(ba), self.batch_size, p=prob1)
-                # if self.beta < 1:
-                #     self.beta += self.beta_increment
-                #     weights = (len(ba) * prob1[indices]) ** (- self.beta)
-                #     weights = weights / np.max(weights)
-                #     weights = np.array(weights, dtype=np.float32)
-                #     self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices], weights)
-                # else:
-                #     self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices])
+                # replay_size = self.init_size + (self.batch_size - self.init_size) * pow(
+                #         self.train_steps / self.convergence_episode, 2)
+                # indices = np.random.choice(len(ba), min(self.batch_size, int(replay_size)), p=prob1)
+                # self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices])
+                prob1 = self.priorities / np.sum(self.priorities)
+                indices = np.random.choice(len(ba), self.batch_size, p=prob1)
+                weights = (len(ba) * prob1[indices]) ** (- self.beta)
+                if self.beta < 1:
+                    self.beta += self.beta_increment
+                weights = weights / np.max(weights)
+                weights = np.array(weights, dtype=np.float32)
+                self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices], weights)
 
     def train(self, data_set, save_params=False):
         if not save_params:
@@ -280,7 +282,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path)
             scale = env.scale
-            model = PPO(env, memory_size=9, batch_size=2 * scale, clip_ep=0.2)
+            model = PPO(env, memory_size=5, batch_size=2 * scale, clip_ep=0.25)
             simple_results.loc[title] = model.train(title, save_params=True)
             # simple_results.loc[title] = model.train(basic_model, save_params=True)
             # simple_results.loc[title] = model.test(basic_model)
