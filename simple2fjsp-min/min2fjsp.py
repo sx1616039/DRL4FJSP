@@ -30,7 +30,7 @@ class JobEnv:
                      "LPT": "max", "LWKR": "min", "FDD/LWKR": "max", "LOPNR": "min", "SRM": "min", "LIFO": "min"}
         self.pdr_label = ["SPT", "MWKR", "FDD/MWKR", "MOPNR", "LRM", "FIFO",
                           "LPT", "LWKR", "FDD/LWKR", "LOPNR", "SRM", "LIFO"]
-        self.machine_PDR = ["min", "max"]
+        self.machine_PDR = ["min", "max", "random"]
         self.case_name = case_name
         self.job_input = {}
         self.orders_of_job = {}
@@ -101,7 +101,7 @@ class JobEnv:
         self.last_release_time = None
         self.done = False
         self.reward = 0
-        self.no_op_cnt = 0
+        self.op_cnt = 0
         self.result_dict = {}
 
     def reset(self):
@@ -116,7 +116,7 @@ class JobEnv:
         self.last_release_time = np.repeat(0, self.job_num)
         self.state = np.zeros(self.state_num, dtype=float)
         self.done = False
-        self.no_op_cnt = 0
+        self.op_cnt = 0
         self.job_dict = copy.deepcopy(self.job_input)
         return self._get_state()
 
@@ -162,7 +162,7 @@ class JobEnv:
 
     def _get_state(self):
         self.state[0:self.job_num] = self.current_op_of_job / self.machine_num
-        self.state[self.max_job:] = self.assignable_job
+        self.state[self.max_job:self.state_num] = self.assignable_job
         return self.state.flatten()
 
     def get_selection(self, action):
@@ -189,7 +189,6 @@ class JobEnv:
         self.reward = 0
         # action is operation
         self.allocate_job(selected_job, selected_machine_PDR)
-        # print(sum(self.current_op_of_job))
         if self.stop():
             self.done = True
         return self._get_state(), self.reward/self.max_op_len, self.done
@@ -207,6 +206,7 @@ class JobEnv:
         self.modify_machine(job_id, self.current_op_of_job[job_id], machine_id)
         # Attention that the job index starts from 0, while the machine index starts from 1
         self.job_on_machine[machine_id-1] = job_id
+        self.op_cnt += 1
 
         start_time = self.next_time_on_machine[machine_id-1]
         self.next_time_on_machine[machine_id-1] += process_time
@@ -224,7 +224,7 @@ class JobEnv:
                 if not self.assignable(x, self.current_op_of_job[x]):
                     self.assignable_job[x] = False
         # there is no assignable jobs after assigned a job and time advance is needed
-        # self.reward += process_time
+        self.reward -= process_time
         while sum(self.assignable_job) == 0 and not self.stop():
             self.reward -= self.time_advance()
             self.release_machine()

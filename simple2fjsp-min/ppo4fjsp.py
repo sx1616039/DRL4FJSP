@@ -50,7 +50,7 @@ class PPO:
         self.state_dim = self.env.state_num
         self.action_dim = self.env.action_num
         self.case_name = self.env.case_name
-        self.gamma = 0.999  # reward discount
+        self.gamma = 0.995  # reward discount
         self.A_LR = 1e-3  # learning rate for actor
         self.C_LR = 3e-3  # learning rate for critic
         self.UPDATE_STEPS = 10  # actor update steps
@@ -70,7 +70,7 @@ class PPO:
         self.convergence_episode = 2000
         self.beta_increment = (self.upper_bound - self.beta) / self.convergence_episode
         self.train_steps = 0
-        self.PER_NUM = 2
+        self.PER_NUM = 1
 
     def select_action(self, state):
         state = torch.from_numpy(state).float().unsqueeze(0)
@@ -235,9 +235,9 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "6-idle-simple2-fjsp-2000-v"
+    prefix = "6-area-min-2000-mk"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../Hurink/vdata/"
+    path = "../MK/"
     for i in range(3):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)

@@ -85,7 +85,7 @@ class PPO:
         self.batch_size = batch_size  # update batch size
         self.epsilon = clip_ep
 
-        self.input_size = self.env.max_order_num
+        self.input_size = self.env.max_dim
         self.action_dim = self.env.action_num
         self.case_name = self.env.case_name
         self.gamma = 0.999  # reward discount
@@ -94,8 +94,8 @@ class PPO:
         self.UPDATE_STEPS = 10  # update steps
         self.max_grad_norm = 0.5
 
-        self.actor_net = Actor(self.input_size, unit_num, self.action_dim)
-        self.critic_net = Critic(self.input_size, unit_num)
+        self.actor_net = Actor(self.input_size, 100, self.action_dim)
+        self.critic_net = Critic(self.input_size, 100)
         self.actor_optimizer = optimizer.Adam(self.actor_net.parameters(), self.A_LR)
         self.critic_net_optimizer = optimizer.Adam(self.critic_net.parameters(), self.C_LR)
         if not os.path.exists('param'):
@@ -194,7 +194,7 @@ class PPO:
         converged_value = []
         t0 = time.time()
         for i_epoch in range(4000):
-            if time.time() - t0 >= 3600:
+            if time.time() - t0 >= 600:
                 break
             bs, ba, br, bp = [], [], [], []
             for m in range(self.memory_size):  # memory size is the number of complete episode
@@ -275,7 +275,7 @@ if __name__ == '__main__':
             env = JobEnv(title, path, only_PDR=False)
             scale = env.scale
             model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1 * scale, clip_ep=0.2)
-            simple_results.loc[title] = model.train(title, is_reschedule=False)
+            # simple_results.loc[title] = model.train(title, is_reschedule=False)
             # simple_results.loc[title] = model.train(basic_model, is_reschedule=True)
-            # simple_results.loc[title] = model.test(basic_model)
+            simple_results.loc[title] = model.test("la01")
         simple_results.to_csv(name + ".csv")

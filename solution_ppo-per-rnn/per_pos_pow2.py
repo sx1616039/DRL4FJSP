@@ -99,7 +99,7 @@ class PPO:
         self.priorities = np.zeros([self.capacity], dtype=np.float32)
         self.training_step = 0
         self.init_size = 1
-        self.convergence_episode = 2000
+        self.convergence_episode = 5000
 
     def select_action(self, state):
         state = torch.from_numpy(state).float().unsqueeze(0)
@@ -254,7 +254,7 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "rnn-idle-solution-fjsp-2000-vdata"
+    prefix = "rnn-idle-solution-fjsp-5000-vdata"
     param = [prefix, "converged_iterations", "total_time", 'min']
     path = "../Hurink/vdata/"
     for i in range(3):
@@ -266,7 +266,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path)
             scale = env.scale
-            model = PPO(env, unit_num=env.state_num, memory_size=9, batch_size=2 * scale, clip_ep=0.2)
+            model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1 * scale, clip_ep=0.2)
             simple_results.loc[title] = model.train(title, is_reschedule=False)
             # simple_results.loc[title] = model.train(basic_model, is_reschedule=True)
             # simple_results.loc[title] = model.test(basic_model)

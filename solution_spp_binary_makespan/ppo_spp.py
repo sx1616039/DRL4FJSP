@@ -49,13 +49,13 @@ class Actor(nn.Module):
         self.num_level = num_level
         self.num_grid = _cal_num_grids(num_level)
         self.feature1 = nn.Sequential(nn.Conv2d(input_channel, out_channel, kernel_size=(5, 5), padding=2), nn.ReLU())
-        self.fc2 = nn.Linear(out_channel * self.num_grid, out_channel * self.num_grid)
+        # self.fc2 = nn.Linear(out_channel * self.num_grid, out_channel * self.num_grid)
         self.action_head = nn.Linear(out_channel * self.num_grid, out_num)
 
     def forward(self, x):
         x = self.feature1(x)
         x = SpatialPyramidPooling2d(x, self.num_level)
-        x = self.fc2(x)
+        # x = self.fc2(x)
         action_prob = F.softmax(self.action_head(x), dim=1)
         return action_prob
 
@@ -66,13 +66,13 @@ class Critic(nn.Module):
         self.num_level = num_level
         self.num_grid = _cal_num_grids(num_level)
         self.feature1 = nn.Sequential(nn.Conv2d(input_channel, out_channel, kernel_size=(5, 5), padding=2), nn.ReLU())
-        self.fc2 = nn.Linear(out_channel * self.num_grid, out_channel * self.num_grid)
+        # self.fc2 = nn.Linear(out_channel * self.num_grid, out_channel * self.num_grid)
         self.state_value = nn.Linear(out_channel * self.num_grid, out_num)
 
     def forward(self, x):
         x = self.feature1(x)
         x = SpatialPyramidPooling2d(x, self.num_level)
-        x = self.fc2(x)
+        # x = self.fc2(x)
         state_value = self.state_value(x)
         return state_value
 
@@ -87,7 +87,7 @@ class PPO:
 
         self.action_dim = self.env.action_num
         self.case_name = self.env.case_name
-        self.gamma = 0.99  # reward discount
+        self.gamma = 0.999  # reward discount
         self.A_LR = 1e-3  # learning rate for actor
         self.C_LR = 3e-3  # learning rate for critic
         self.UPDATE_STEPS = 10  # actor update steps
@@ -270,7 +270,7 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "12-idle-binary-fjsp-2000-vdata"
+    prefix = "6-0-idle-binary-fjsp-2000-vdata"
     param = [prefix, "converged_iterations", "total_time", 'min']
     path = "../Hurink/SPP/"
     for i in range(3):
@@ -282,7 +282,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path)
             scale = env.scale
-            model = PPO(env, memory_size=5, batch_size=2 * scale, clip_ep=0.25)
+            model = PPO(env, memory_size=9, batch_size=2 * scale, clip_ep=0.2)
             simple_results.loc[title] = model.train(title, save_params=True)
             # simple_results.loc[title] = model.train(basic_model, save_params=True)
             # simple_results.loc[title] = model.test(basic_model)

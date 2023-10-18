@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optimizer
 from torch.distributions import Categorical
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler, SequentialSampler
 from solution4fjsp import JobEnv
 
 m_seed = 3407
@@ -101,7 +101,7 @@ class PPO:
         self.priorities = np.zeros([self.capacity], dtype=np.float32)
         self.training_step = 0
         self.init_size = 1
-        self.convergence_episode = 2000
+        self.convergence_episode = 3000
 
     def select_action(self, state):
         state = torch.from_numpy(state).float().unsqueeze(0)
@@ -168,8 +168,8 @@ class PPO:
         for i in range(self.UPDATE_STEPS):
             self.training_step += 1
             # # replay all experience
-            for index in BatchSampler(SubsetRandomSampler(range(len(ba))), self.batch_size, False):
-                self.priorities[index] = self.learn(state[index], action[index], d_reward[index], old_log_prob[index])
+            for idx in BatchSampler(SubsetRandomSampler(range(len(ba))), self.batch_size, False):
+                self.priorities[idx] = self.learn(state[idx], action[idx], d_reward[idx], old_log_prob[idx])
             # priority replay
             prob1 = self.priorities / np.sum(self.priorities)
             replay_size = self.init_size + (self.batch_size - self.init_size) * pow(
@@ -256,7 +256,7 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "rnn-idle-solution-fjsp-2000-vdata"
+    prefix = "lstm-idle-solution-fjsp-random-vdata"
     param = [prefix, "converged_iterations", "total_time", 'min']
     path = "../Hurink/vdata/"
     for i in range(3):

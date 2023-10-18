@@ -30,7 +30,7 @@ class JobEnv:
                      "LPT": "max", "LWKR": "min", "FDD/LWKR": "max", "LOPNR": "min", "SRM": "min", "LIFO": "min"}
         self.pdr_label = ["SPT", "MWKR", "FDD/MWKR", "MOPNR", "LRM", "FIFO",
                           "LPT", "LWKR", "FDD/LWKR", "LOPNR", "SRM", "LIFO"]
-        self.machine_PDR = ["min", "max"]
+        self.machine_PDR = ["min", "max", "random"]
         self.case_name = case_name
         self.job_input = {}
         self.orders_of_job = {}
@@ -73,7 +73,7 @@ class JobEnv:
         if self.only_use_PDR:
             self.num_of_machine_pdr = 1  # only use min operation
         else:
-            self.num_of_machine_pdr = 2  # max and min
+            self.num_of_machine_pdr = 2  # min, max and random
         self.action_num = int(len(self.pdr_label)/2) * self.num_of_machine_pdr
         # self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
         self.max_job = self.job_num

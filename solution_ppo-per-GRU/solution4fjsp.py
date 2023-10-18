@@ -123,7 +123,7 @@ class JobEnv:
         self.done = False
         self.no_op_cnt = 0
         self.job_dict = copy.deepcopy(self.job_input)
-        self.state = np.zeros([self.job_num, self.max_order_num], dtype=float)
+        self.state = np.ones([self.job_num, self.max_order_num], dtype=float)
         self.solution_op_cnt = 0
         return self._get_state()
 
@@ -215,7 +215,7 @@ class JobEnv:
         self.job_on_machine[machine_id-1] = job_id
 
         self.solution_op_cnt += 1
-        self.state[job_id][self.current_op_of_job[job_id]] = 1
+        self.state[job_id][self.current_op_of_job[job_id]] = 0
         # self.state[job_id][self.current_op_of_job[job_id]] = self.solution_op_cnt / self.job_num / self.machine_num
         start_time = self.next_time_on_machine[machine_id-1]
         self.next_time_on_machine[machine_id-1] += process_time
