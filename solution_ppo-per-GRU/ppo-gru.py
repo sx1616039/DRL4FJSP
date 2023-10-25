@@ -86,24 +86,26 @@ class PPO:
         self.input_size = self.env.max_order_num
         self.action_dim = self.env.action_num
         self.case_name = self.env.case_name
-        self.gamma = 0.999  # reward discount
+        self.gamma = 0.99  # reward discount
         self.A_LR = 1e-3  # learning rate for actor
         self.C_LR = 3e-3  # learning rate for critic
         self.UPDATE_STEPS = 10  # update steps
         self.max_grad_norm = 0.5
 
-        self.actor_net = Actor(self.input_size, 100, self.action_dim)
-        self.critic_net = Critic(self.input_size, 100)
+        self.actor_net = Actor(self.input_size, unit_num, self.action_dim)
+        self.critic_net = Critic(self.input_size, unit_num)
         self.actor_optimizer = optimizer.Adam(self.actor_net.parameters(), self.A_LR)
         self.critic_net_optimizer = optimizer.Adam(self.critic_net.parameters(), self.C_LR)
         if not os.path.exists('param'):
             os.makedirs('param/net_param')
-        self.alpha = 0.6  # parameters for priority replay
-        self.capacity = self.memory_size*self.env.scale
+        self.capacity = self.memory_size * self.env.scale
         self.priorities = np.zeros([self.capacity], dtype=np.float32)
+        self.alpha = 0.6  # parameters for priority replay
+        self.beta = 0.4
+        self.upper_bound = 1
+        self.convergence_episode = 2000
+        self.beta_increment = (self.upper_bound - self.beta) / self.convergence_episode
         self.train_steps = 0
-        self.init_size = 1
-        self.convergence_episode = 3000
         self.PER_NUM = 1
 
     def select_action(self, state):
@@ -128,7 +130,11 @@ class PPO:
         self.critic_net.load_state_dict(torch.load('param/net_param/' + model_name + '_critic_net.model'))
         self.actor_net.load_state_dict(torch.load('param/net_param/' + model_name + '_actor_net.model'))
 
-    def learn(self, state, action, d_r, old_prob):
+    def learn(self, state, action, d_r, old_prob, w=None):
+        if w is not None:
+            weights = torch.tensor(w, dtype=torch.float).view(-1, 1)
+        else:
+            weights = 1
         #  compute the advantage
         d_reward = d_r.view(-1, 1)
         V = self.critic_net(state)
@@ -149,16 +155,17 @@ class PPO:
         self.actor_optimizer.step()
 
         # update critic network
-        value_loss = torch.sum((d_reward - V).pow(2) / d_reward.size(0))
+        value_loss = sum((d_reward - V).pow(2) / d_reward.size(0) * weights)
         self.critic_net_optimizer.zero_grad()
         value_loss.backward()
         nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
         self.critic_net_optimizer.step()
         # calculate priorities
-        for i in range(len(advantage)):
-            if advantage[i] < 0:
-                advantage[i] = 1e-5
-        prob = advantage ** self.alpha
+        if self.train_steps > self.convergence_episode:
+            for w in range(len(advantage)):
+                if advantage[w] < 0:
+                    advantage[w] = 1e-5
+        prob = abs(advantage) ** self.alpha
         return np.array(prob).flatten()
 
     def update(self, bs, ba, br, bp):
@@ -174,12 +181,15 @@ class PPO:
             for index in BatchSampler(SubsetRandomSampler(range(len(ba))), self.batch_size, False):
                 self.priorities[index] = self.learn(state[index], action[index], d_reward[index], old_log_prob[index])
             # priority replay
-            for r in range(self.PER_NUM):
+            for w in range(self.PER_NUM):
                 prob1 = self.priorities / np.sum(self.priorities)
-                replay_size = self.init_size + (self.batch_size - self.init_size) * pow(
-                    self.train_steps / self.convergence_episode, 2)
-                indices = np.random.choice(len(ba), min(self.batch_size, int(replay_size)), p=prob1)
-                self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices])
+                indices = np.random.choice(len(prob1), self.batch_size, p=prob1)
+                weights = (len(ba) * prob1[indices]) ** (- self.beta)
+                if self.beta < self.upper_bound:
+                    self.beta += self.beta_increment
+                weights = weights / np.max(weights)
+                weights = np.array(weights, dtype=np.float32)
+                self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices], weights)
 
     def train(self, model_name, is_reschedule=False):
         if is_reschedule:
@@ -260,9 +270,9 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "gru-idle-solution-fjsp-3000-vdata"
+    prefix = "gru-area-solution-fjsp-2000-MK"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../Hurink/vdata/"
+    path = "../MK/"
     for i in range(3):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)
@@ -272,7 +282,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path, only_PDR=False)
             scale = env.scale
-            model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1 * scale, clip_ep=0.2)
+            model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1*scale, clip_ep=0.2)
             simple_results.loc[title] = model.train(title, is_reschedule=False)
             # simple_results.loc[title] = model.train(basic_model, is_reschedule=True)
             # simple_results.loc[title] = model.test(basic_model)

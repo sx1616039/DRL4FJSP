@@ -75,8 +75,8 @@ class JobEnv:
         else:
             self.num_of_machine_pdr = 2  # max and min
 
-        self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
-        # self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
+        # self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
+        self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
         self.max_job = self.job_num
         self.max_machine = self.machine_num
         self.current_time = 0  # current time
@@ -216,7 +216,6 @@ class JobEnv:
 
         self.solution_op_cnt += 1
         self.state[job_id][self.current_op_of_job[job_id]] = 0
-        # self.state[job_id][self.current_op_of_job[job_id]] = self.solution_op_cnt / self.job_num / self.machine_num
         start_time = self.next_time_on_machine[machine_id-1]
         self.next_time_on_machine[machine_id-1] += process_time
         end_time = start_time + process_time
@@ -233,7 +232,7 @@ class JobEnv:
                 if not self.assignable(x, self.current_op_of_job[x]):
                     self.assignable_job[x] = False
         # there is no assignable jobs after assigned a job and time advance is needed
-        # self.reward += process_time
+        self.reward -= process_time
         while sum(self.assignable_job) == 0 and not self.stop():
             self.reward -= self.time_advance()
             self.release_machine()

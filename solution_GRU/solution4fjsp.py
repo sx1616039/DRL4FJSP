@@ -74,8 +74,8 @@ class JobEnv:
             self.num_of_machine_pdr = 1  # only use min operation
         else:
             self.num_of_machine_pdr = 2  # max and min
-        self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
-        # self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
+        # self.action_num = len(self.pdr_label) * self.num_of_machine_pdr
+        self.action_num = int(len(self.pdr_label) / 2) * self.num_of_machine_pdr
         self.max_job = self.job_num
         self.max_machine = self.machine_num
         self.current_time = 0  # current time
@@ -119,11 +119,10 @@ class JobEnv:
         self.finished_jobs = np.zeros(self.job_num, dtype=bool)
 
         self.last_release_time = np.repeat(0, self.job_num)
-        self.state = np.zeros(self.state_num, dtype=float)
         self.done = False
         self.no_op_cnt = 0
         self.job_dict = copy.deepcopy(self.job_input)
-        self.state = np.zeros([self.job_num, self.max_order_num], dtype=float)
+        self.state = np.ones([self.job_num, self.max_order_num], dtype=float)
         self.solution_op_cnt = 0
         return self._get_state()
 
@@ -168,7 +167,7 @@ class JobEnv:
         return 0
 
     def _get_state(self):
-        return np.array(self.state).flatten()
+        return np.array(self.state).reshape((1, self.job_num, self.max_order_num))
 
     def get_selection(self, action):
         # action contains the PDRs for jobs and machines
@@ -193,9 +192,7 @@ class JobEnv:
         selected_job, selected_machine_PDR = self.get_selection(action)
         self.done = False
         self.reward = 0
-        # action is operation
         self.allocate_job(selected_job, selected_machine_PDR)
-        # print(sum(self.current_op_of_job))
         if self.stop():
             self.done = True
         return self._get_state(), self.reward/self.max_op_len, self.done
@@ -215,12 +212,8 @@ class JobEnv:
         self.job_on_machine[machine_id-1] = job_id
 
         self.solution_op_cnt += 1
-        self.state[job_id][self.current_op_of_job[job_id]] = self.solution_op_cnt / self.job_num / self.machine_num
-        # self.state[job_id][self.current_op_of_job[job_id]] = 1
-        start_time = self.next_time_on_machine[machine_id-1]
+        self.state[job_id][self.current_op_of_job[job_id]] = 0
         self.next_time_on_machine[machine_id-1] += process_time
-        end_time = start_time + process_time
-        self.result_dict[job_id+1, machine_id] = start_time, end_time, process_time
 
         self.last_release_time[job_id] = self.current_time
         self.busy_job[job_id] = True
@@ -232,8 +225,9 @@ class JobEnv:
                 self.modify_machine(x, self.current_op_of_job[x], machine_id)
                 if not self.assignable(x, self.current_op_of_job[x]):
                     self.assignable_job[x] = False
+        # the total reward is the negative sum of processing time and idle time
+        self.reward -= process_time
         # there is no assignable jobs after assigned a job and time advance is needed
-        # self.reward += process_time
         while sum(self.assignable_job) == 0 and not self.stop():
             self.reward -= self.time_advance()
             self.release_machine()
@@ -245,7 +239,6 @@ class JobEnv:
             self.current_time = min_next_time
         else:
             self.current_time = self.find_second_min()
-
         for machine in range(self.machine_num):
             dist_need_to_advance = self.current_time - self.next_time_on_machine[machine]
             if dist_need_to_advance > 0:

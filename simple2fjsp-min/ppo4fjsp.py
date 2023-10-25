@@ -235,9 +235,9 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "6-area-min-2000-mk"
+    prefix = "6-area-min-2000-9202-v"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../MK/"
+    path = "../Hurink/vdata/"
     for i in range(3):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)
@@ -247,7 +247,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path, only_min=False)
             scale = env.scale
-            model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1 * scale, clip_ep=0.2)
+            model = PPO(env, unit_num=env.state_num, memory_size=9, batch_size=2 * scale, clip_ep=0.2)
             simple_results.loc[title] = model.train(title, is_reschedule=False)
             # simple_results.loc[title] = model.train(basic_model, is_reschedule=True)
             # simple_results.loc[title] = model.test(basic_model)

@@ -16,59 +16,31 @@ torch.manual_seed(m_seed)
 
 
 class Actor(nn.Module):
-    def __init__(self, input_num, hidden_num, num_output, layers=2):
+    def __init__(self, num_input, num_output, node_num=100):
         super(Actor, self).__init__()
-        self.hidden_dim = hidden_num
-        self.n_layers = layers
-        self.rnn = nn.GRU(
-            input_size=input_num,
-            hidden_size=hidden_num,  # rnn hidden unit
-            num_layers=self.n_layers,  # number of rnn layer
-            batch_first=True,  # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
-        )
-        self.action_head = nn.Linear(hidden_num, num_output)
+        self.fc1 = nn.Linear(num_input, node_num)
+        self.fc2 = nn.Linear(node_num, node_num)
+        self.action_head = nn.Linear(node_num, num_output)
 
     def forward(self, x):
-        batch_size = x.size(0)
-        h_0 = self.init_hidden(batch_size)
-        r_out, h_state = self.rnn(x.view(len(x), 1, -1), h_0)
-        x = r_out[:, -1, :]
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         action_prob = F.softmax(self.action_head(x), dim=1)
         return action_prob
 
-    def init_hidden(self, batch_size):
-        # This method generates the first hidden state of zeros which we'll use in the forward pass
-        hidden = torch.zeros(self.n_layers, batch_size, self.hidden_dim)
-        # We'll send the tensor holding the hidden state to the device we specified earlier as well
-        return hidden
-
 
 class Critic(nn.Module):
-    def __init__(self, input_num, hidden_num, num_output=1, layers=2):
+    def __init__(self, num_input, num_output=1, node_num=100):
         super(Critic, self).__init__()
-        self.hidden_dim = hidden_num
-        self.n_layers = layers
-        self.rnn = nn.GRU(
-            input_size=input_num,
-            hidden_size=hidden_num,  # rnn hidden unit
-            num_layers=self.n_layers,  # number of rnn layer
-            batch_first=True,  # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
-        )
-        self.state_value = nn.Linear(hidden_num, num_output)
+        self.fc1 = nn.Linear(num_input, node_num)
+        self.fc2 = nn.Linear(node_num, node_num)
+        self.state_value = nn.Linear(node_num, num_output)
 
     def forward(self, x):
-        batch_size = x.size(0)
-        h_0 = self.init_hidden(batch_size)
-        r_out, h_state = self.rnn(x.view(len(x), 1, -1), h_0)
-        x = r_out[:, -1, :]
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         value = self.state_value(x)
         return value
-
-    def init_hidden(self, batch_size):
-        # This method generates the first hidden state of zeros which we'll use in the forward pass
-        hidden = torch.zeros(self.n_layers, batch_size, self.hidden_dim)
-        # We'll send the tensor holding the hidden state to the device we specified earlier as well
-        return hidden
 
 
 class PPO:
@@ -88,18 +60,21 @@ class PPO:
         self.UPDATE_STEPS = 10  # update steps
         self.max_grad_norm = 0.5
 
-        self.actor_net = Actor(self.state_dim, unit_num, self.action_dim)
-        self.critic_net = Critic(self.state_dim, unit_num)
+        self.actor_net = Actor(self.state_dim, self.action_dim, node_num=unit_num)
+        self.critic_net = Critic(self.state_dim, node_num=unit_num)
         self.actor_optimizer = optimizer.Adam(self.actor_net.parameters(), self.A_LR)
         self.critic_net_optimizer = optimizer.Adam(self.critic_net.parameters(), self.C_LR)
         if not os.path.exists('param'):
             os.makedirs('param/net_param')
-        self.alpha = 0.6  # parameters for priority replay
-        self.capacity = self.memory_size*self.env.scale
+        self.capacity = self.memory_size * self.env.scale
         self.priorities = np.zeros([self.capacity], dtype=np.float32)
-        self.training_step = 0
-        self.init_size = 1
+        self.alpha = 0.6  # parameters for priority replay
+        self.beta = 0.4
+        self.upper_bound = 1
         self.convergence_episode = 2000
+        self.beta_increment = (self.upper_bound - self.beta) / self.convergence_episode
+        self.train_steps = 0
+        self.PER_NUM = 1
 
     def select_action(self, state):
         state = torch.from_numpy(state).float().unsqueeze(0)
@@ -123,7 +98,11 @@ class PPO:
         self.critic_net.load_state_dict(torch.load('param/net_param/' + model_name + '_critic_net.model'))
         self.actor_net.load_state_dict(torch.load('param/net_param/' + model_name + '_actor_net.model'))
 
-    def learn(self, state, action, d_r, old_prob):
+    def learn(self, state, action, d_r, old_prob, w=None):
+        if w is not None:
+            weights = torch.tensor(w, dtype=torch.float).view(-1, 1)
+        else:
+            weights = 1
         #  compute the advantage
         d_reward = d_r.view(-1, 1)
         V = self.critic_net(state)
@@ -144,16 +123,17 @@ class PPO:
         self.actor_optimizer.step()
 
         # update critic network
-        value_loss = torch.sum((d_reward-V).pow(2)/d_reward.size(0))
+        value_loss = sum((d_reward - V).pow(2) / d_reward.size(0) * weights)
         self.critic_net_optimizer.zero_grad()
         value_loss.backward()
         nn.utils.clip_grad_norm_(self.critic_net.parameters(), self.max_grad_norm)
         self.critic_net_optimizer.step()
         # calculate priorities
-        for i in range(len(advantage)):
-            if advantage[i] < 0:
-                advantage[i] = 1e-5
-        prob = advantage ** self.alpha
+        if self.train_steps > self.convergence_episode:
+            for w in range(len(advantage)):
+                if advantage[w] < 0:
+                    advantage[w] = 1e-5
+        prob = abs(advantage) ** self.alpha
         return np.array(prob).flatten()
 
     def update(self, bs, ba, br, bp):
@@ -164,16 +144,20 @@ class PPO:
         d_reward = torch.tensor(br, dtype=torch.float)
 
         for i in range(self.UPDATE_STEPS):
-            self.training_step += 1
+            self.train_steps += 1
             # # replay all experience
             for index in BatchSampler(SubsetRandomSampler(range(len(ba))), self.batch_size, False):
                 self.priorities[index] = self.learn(state[index], action[index], d_reward[index], old_log_prob[index])
-            # priority replay
-            prob1 = self.priorities / np.sum(self.priorities)
-            replay_size = self.init_size + (self.batch_size - self.init_size) * pow(
-                self.training_step / self.convergence_episode, 2)
-            indices = np.random.choice(len(ba), min(self.batch_size, int(replay_size)), p=prob1)
-            self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices])
+                # priority replay
+            for w in range(self.PER_NUM):
+                prob1 = self.priorities / np.sum(self.priorities)
+                indices = np.random.choice(len(prob1), self.batch_size, p=prob1)
+                weights = (len(ba) * prob1[indices]) ** (- self.beta)
+                if self.beta < self.upper_bound:
+                    self.beta += self.beta_increment
+                weights = weights / np.max(weights)
+                weights = np.array(weights, dtype=np.float32)
+                self.learn(state[indices], action[indices], d_reward[indices], old_log_prob[indices], weights)
 
     def train(self, model_name, is_reschedule=False):
         if is_reschedule:
@@ -185,7 +169,7 @@ class PPO:
         min_make_span = 100000
         converged_value = []
         t0 = time.time()
-        for i_epoch in range(4000):
+        for i_epoch in range(9000):
             if time.time() - t0 >= 3600:
                 break
             bs, ba, br, bp = [], [], [], []
@@ -254,10 +238,10 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "rnn-idle-solution-fjsp-2000-vdata"
+    prefix = "6-area-solution-per-0999-MK"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../Hurink/vdata/"
-    for i in range(3):
+    path = "../MK/"
+    for i in range(5):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)
         for file_name in os.listdir(path):
