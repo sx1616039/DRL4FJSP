@@ -282,7 +282,7 @@ if __name__ == '__main__':
             basic_model = file_name.split('_')[0]
             env = JobEnv(title, path, only_PDR=False)
             scale = env.scale
-            model = PPO(env, unit_num=env.state_num, memory_size=3, batch_size=1*scale, clip_ep=0.2)
+            model = PPO(env, unit_num=env.state_num, memory_size=5, batch_size=1*scale, clip_ep=0.2)
             simple_results.loc[title] = model.train(title, is_reschedule=False)
             # simple_results.loc[title] = model.train(basic_model, is_reschedule=True)
             # simple_results.loc[title] = model.test(basic_model)

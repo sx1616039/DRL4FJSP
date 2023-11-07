@@ -232,7 +232,7 @@ class JobEnv:
                 if not self.assignable(x, self.current_op_of_job[x]):
                     self.assignable_job[x] = False
         # there is no assignable jobs after assigned a job and time advance is needed
-        # self.reward += process_time
+        self.reward -= process_time
         while sum(self.assignable_job) == 0 and not self.stop():
             self.reward -= self.time_advance()
             self.release_machine()

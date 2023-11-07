@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 class Actor(nn.Module):
-    def __init__(self, d_model, num_output, num_head=2, dim_ff=256, num_layers=1, dropout=0.1):
+    def __init__(self, d_model, num_output, num_head=6, dim_ff=256, num_layers=1, dropout=0.1):
         super(Actor, self).__init__()
         assert d_model % num_head == 0, "the number of heads must divide evenly into d_model"
         self.d_model = d_model
@@ -24,7 +24,7 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, d_model, num_output=1, num_head=2, dim_ff=256, num_layers=1, dropout=0.1):
+    def __init__(self, d_model, num_output=1, num_head=6, dim_ff=256, num_layers=1, dropout=0.1):
         super(Critic, self).__init__()
         assert d_model % num_head == 0, "the number of heads must divide evenly into d_model"
         self.d_model = d_model

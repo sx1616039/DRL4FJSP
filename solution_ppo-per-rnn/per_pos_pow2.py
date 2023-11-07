@@ -254,9 +254,9 @@ class PPO:
 
 
 if __name__ == '__main__':
-    prefix = "rnn-idle-solution-fjsp-5000-vdata"
+    prefix = "rnn-solution-fjsp-5000-MK"
     param = [prefix, "converged_iterations", "total_time", 'min']
-    path = "../Hurink/vdata/"
+    path = "../MK/"
     for i in range(3):
         name = prefix + str(i)
         simple_results = pd.DataFrame(columns=param, dtype=int)
